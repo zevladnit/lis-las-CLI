@@ -11,38 +11,51 @@ namespace LisLasParser
         private static void Main(string[] args)
         {
             var allFiles = GetDirectoryFiles().ToList();
+            if(allFiles.Contains(null)) CLIError("Not found files");
             Console.WriteLine(string.Join("\n", allFiles));
-            GetLog(allFiles[int.Parse(Console.ReadLine())]);
+            GetLog(allFiles);
         }
 
         private static IEnumerable<string> GetDirectoryFiles() =>
             Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "*.*", SearchOption.AllDirectories)
-                .Where(p => p.EndsWith(".LIS") || p.EndsWith(".LAS"));
+                .Where(p => p.EndsWith(".LIS") || p.EndsWith(".LAS") || p.EndsWith(".lis") || p.EndsWith(".las"));
 
-        private static void GetLog(string directory)
+        private static void GetLog(List<string> directory)
         {
-            using (var sr = new StreamReader(directory))
+            foreach (var i in directory)
             {
-                var line = sr.ReadToEnd();
-                var rgxLog = new Regex(@"~PARAMETER\ INFORMATION\ \(log\)([\s\S]*LTYP\.\s*([\s\S]*):\s*LOG\ TYPE[\s\S]*)~Curve\ Information\ Block");
-                var matches = rgxLog.Matches(line);
-                if (matches.Count <= 0)// Error "Not found" if Matches result is empty 
+                using (var sr = new StreamReader(i))
                 {
-                    var tmpColor = Console.ForegroundColor;
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Not found log");
-                    Console.ForegroundColor = tmpColor;
-                    return;
-                }
+                    var line = sr.ReadToEnd();
+                    var rgxLog =
+                        new Regex(
+                            @"~PARAMETER\ INFORMATION\ \(log\)([\s\S]*LTYP\.\s*([\s\S]*):\s*LOG\ TYPE[\s\S]*)~Curve\ Information\ Block");
+                    var matches = rgxLog.Matches(line);
+                    if (matches.Count <= 0) CLIError("Not found log");
 
-                foreach (Match match in matches)
-                {
-                    Console.WriteLine(match.Groups[1].Value);
-                    Console.WriteLine("Log Type : {0}", match.Groups[2].Value);
+                    foreach (Match match in matches)//тут будет сохранение в кэш
+                    {
+                        Console.WriteLine(match.Groups[1].Value);
+                        Console.WriteLine("Log Type : {0}", match.Groups[2].Value);
+                    }
                 }
             }
         }
+
+        public static void CLIError(string text)
+        {
+            var tmpColor = Console.ForegroundColor;
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(text);
+            Console.ForegroundColor = tmpColor;
+            Environment.Exit(0);
+        }
+
+        private class Cash
+        {
+            private string directory;
+            private string logType;
+            private string log;
+        }
     }
 }
-
-
