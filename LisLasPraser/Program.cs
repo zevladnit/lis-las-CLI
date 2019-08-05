@@ -1,55 +1,64 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-
-namespace LisLasParser
+﻿namespace LisLasParser
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using System.Linq;
+    using System.Text.RegularExpressions;
+
     internal class Program
     {
-        private static void Main(string[] args)
+        private static int Main(string[] args)
         {
             var allFiles = GetDirectoryFiles().ToList();
-            if(allFiles.Contains(null)) CLIError("Not found files");
+            if(!allFiles.Any())
+                return CLIError("Not found files");
             Console.WriteLine(string.Join("\n", allFiles));
-            GetLog(allFiles);
+            return GetLog(allFiles);
         }
 
         private static IEnumerable<string> GetDirectoryFiles() =>
-            Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "*.*", SearchOption.AllDirectories)
-                .Where(p => p.EndsWith(".LIS") || p.EndsWith(".LAS") || p.EndsWith(".lis") || p.EndsWith(".las"));
+            Directory.GetFiles(Directory.GetCurrentDirectory(), "*.las", SearchOption.AllDirectories);
 
-        private static void GetLog(List<string> directory)
+        private static int GetLog(IEnumerable<string> directory)
         {
             foreach (var i in directory)
             {
-                using (var sr = new StreamReader(i))
-                {
-                    var line = sr.ReadToEnd();
-                    var rgxLog =
-                        new Regex(
-                            @"~PARAMETER\ INFORMATION\ \(log\)([\s\S]*LTYP\.\s*([\s\S]*):\s*LOG\ TYPE[\s\S]*)~Curve\ Information\ Block");
-                    var matches = rgxLog.Matches(line);
-                    if (matches.Count <= 0) CLIError("Not found log");
+                using var sr = new StreamReader(i);
 
-                    foreach (Match match in matches)//тут будет сохранение в кэш
-                    {
-                        Console.WriteLine(match.Groups[1].Value);
-                        Console.WriteLine("Log Type : {0}", match.Groups[2].Value);
-                    }
+
+                var line = sr.ReadToEnd();
+                var rgxLog =
+                    new Regex(
+                        @"~PARAMETER\ INFORMATION\ \(log\)([\s\S]*LTYP\.\s*([\s\S]*):\s*LOG\ TYPE[\s\S]*)~Curve\ Information\ Block");
+                var matches = rgxLog.Matches(line);
+                if (matches.Count <= 0)
+                    return CLIError("Not found log");
+
+                foreach (Match match in matches)//тут будет сохранение в кэш
+                {
+                    Console.WriteLine(match.Groups[1].Value);
+                    Console.WriteLine("Log Type : {0}", match.Groups[2].Value);
                 }
             }
+
+            return 0;
+        }
+        
+        public static int CLIError(string text)
+        {
+            lock (guarder)
+            {
+                var tmpColor = Console.ForegroundColor;
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(text);
+                Console.ForegroundColor = tmpColor;
+            }
+
+            return 1;
         }
 
-        public static void CLIError(string text)
-        {
-            var tmpColor = Console.ForegroundColor;
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(text);
-            Console.ForegroundColor = tmpColor;
-            Environment.Exit(0);
-        }
+        private static readonly object guarder = new object();
 
         private class Cash
         {
